@@ -7,14 +7,6 @@
       <td align="left">
         <h1>Son Player</h1>
         <p><strong>Offline Android video player powered by Media3 and NextLib</strong></p>
-        <p>
-          <a href="../../releases/latest"><img src="https://img.shields.io/badge/Release-Get%20APK-blue?style=for-the-badge" alt="Release App"></a>
-          <a href="../../actions"><img src="https://img.shields.io/badge/Beta-Build%20Now-orange?style=for-the-badge" alt="Beta App"></a>
-        </p>
-        <p>
-          <img src="https://img.shields.io/badge/Version-1.0.0--beta-green?style=flat-square" alt="App version">
-          <img src="https://img.shields.io/badge/Update-Auto%20updates-blue?style=flat-square" alt="Update status">
-        </p>
       </td>
     </tr>
   </table>
@@ -34,6 +26,18 @@
 | **Target Android** | API 36 |
 | **Architecture** | ARMv7, ARM64 |
 | **License** | Apache License 2.0 |
+
+## Downloads and Builds
+
+<p>
+  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Release-Get%20APK-blue?style=for-the-badge" alt="Release App"></a>
+  <a href="../../actions"><img src="https://img.shields.io/badge/Beta-Build%20Now-orange?style=for-the-badge" alt="Beta App"></a>
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Version-1.0.0--beta-green?style=flat-square" alt="App version">
+  <img src="https://img.shields.io/badge/Update-Auto%20updates-blue?style=flat-square" alt="Update status">
+</p>
 
 ## Languages
 
