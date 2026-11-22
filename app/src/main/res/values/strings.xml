@@ -6,8 +6,12 @@
     <string name="open_any_format">Open File</string>
     <string name="continue_watching">Continue Watching</string>
     <string name="my_videos">Video Folders</string>
-    <string name="empty_library_title">No video folders yet</string>
-    <string name="empty_library_subtitle">Add a folder from your device to browse and sort offline videos by name, date added, or file size.</string>
+    <string name="empty_library_title">No video folders found</string>
+    <string name="empty_library_subtitle">Local videos stored on your device will appear here automatically.</string>
+    <string name="permission_required_title">Media access required</string>
+    <string name="permission_required_subtitle">Allow access to local videos so Son Player can scan your device folders for offline playback.</string>
+    <string name="grant_permission">Allow Access</string>
+    <string name="open_app_settings">App Settings</string>
     <string name="sort_by">Sort</string>
     <string name="settings">Settings</string>
     <string name="media_info">Codec &amp; Media Info</string>

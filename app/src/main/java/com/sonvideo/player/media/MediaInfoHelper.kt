@@ -1,8 +1,10 @@
 package com.sonvideo.player.media
 
+import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import com.sonvideo.player.data.VideoEntry
 import io.github.anilbeesetti.nextlib.mediainfo.MediaInfo
@@ -277,6 +279,94 @@ object MediaInfoHelper {
                             )
                         }
                     }
+                }
+            }
+        }
+        results
+    }
+
+    suspend fun scanDeviceVideos(
+        context: Context,
+        bucketIdFilter: String? = null,
+    ): List<VideoEntry> = withContext(Dispatchers.IO) {
+        val results = mutableListOf<VideoEntry>()
+        val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.SIZE,
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.DATE_ADDED,
+            MediaStore.Video.Media.DATE_MODIFIED,
+            MediaStore.Video.Media.BUCKET_ID,
+            MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
+        )
+        val selection = if (bucketIdFilter != null) {
+            "${MediaStore.Video.Media.BUCKET_ID} = ?"
+        } else {
+            null
+        }
+        val selectionArgs = bucketIdFilter?.let { arrayOf(it) }
+        val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
+
+        runCatching {
+            context.contentResolver.query(
+                collection,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder,
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val nameIdx = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+                val sizeIdx = cursor.getColumnIndex(MediaStore.Video.Media.SIZE)
+                val durationIdx = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
+                val dateAddedIdx = cursor.getColumnIndex(MediaStore.Video.Media.DATE_ADDED)
+                val dateModIdx = cursor.getColumnIndex(MediaStore.Video.Media.DATE_MODIFIED)
+                val bucketIdIdx = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_ID)
+                val bucketNameIdx = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idIdx)
+                    val contentUri = ContentUris.withAppendedId(collection, id)
+                    val title = if (nameIdx >= 0) {
+                        cursor.getString(nameIdx)?.takeIf { it.isNotBlank() } ?: "Video_$id"
+                    } else {
+                        "Video_$id"
+                    }
+                    val sizeBytes = if (sizeIdx >= 0 && !cursor.isNull(sizeIdx)) cursor.getLong(sizeIdx) else 0L
+                    val durationMs = if (durationIdx >= 0 && !cursor.isNull(durationIdx)) cursor.getLong(durationIdx) else 0L
+                    val dateAddedSec = if (dateAddedIdx >= 0 && !cursor.isNull(dateAddedIdx)) cursor.getLong(dateAddedIdx) else 0L
+                    val dateModSec = if (dateModIdx >= 0 && !cursor.isNull(dateModIdx)) cursor.getLong(dateModIdx) else 0L
+                    val addedAtMs = when {
+                        dateAddedSec > 0L -> dateAddedSec * 1000L
+                        dateModSec > 0L -> dateModSec * 1000L
+                        else -> 0L
+                    }
+                    val bucketId = if (bucketIdIdx >= 0 && !cursor.isNull(bucketIdIdx)) {
+                        cursor.getString(bucketIdIdx).orEmpty()
+                    } else {
+                        "default"
+                    }
+                    val bucketName = if (bucketNameIdx >= 0) {
+                        cursor.getString(bucketNameIdx)?.takeIf { it.isNotBlank() } ?: "Device Videos"
+                    } else {
+                        "Device Videos"
+                    }
+
+                    results.add(
+                        VideoEntry(
+                            uri = contentUri.toString(),
+                            title = title,
+                            subtitle = bucketName,
+                            formatTag = detectFormatTag(title),
+                            durationMs = durationMs,
+                            addedAtMs = addedAtMs,
+                            sizeBytes = sizeBytes,
+                            folderUri = "mediastore:$bucketId",
+                            folderName = bucketName,
+                        )
+                    )
                 }
             }
         }

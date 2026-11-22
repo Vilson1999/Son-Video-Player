@@ -134,91 +134,110 @@ fun CollectionSortBar(
             }
         }
 
-        Box {
-            Surface(
-                onClick = { onToggleMenu(true) },
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .testTag("sort_menu_button"),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.Sort,
-                        contentDescription = stringResource(R.string.sort_by),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        text = sortOption.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Icon(
-                        imageVector = if (ascending) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
-                        contentDescription = if (ascending) "Ascending" else "Descending",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-            }
+        SortMenuButton(
+            sortOption = sortOption,
+            ascending = ascending,
+            menuExpanded = menuExpanded,
+            onToggleMenu = onToggleMenu,
+            onSelectSort = onSelectSort,
+        )
+    }
+}
 
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { onToggleMenu(false) },
-                modifier = Modifier.testTag("sort_dropdown_menu"),
+@Composable
+fun SortMenuButton(
+    sortOption: LibrarySortOption,
+    ascending: Boolean,
+    menuExpanded: Boolean,
+    onToggleMenu: (Boolean) -> Unit,
+    onSelectSort: (LibrarySortOption) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        Surface(
+            onClick = { onToggleMenu(true) },
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier
+                .minimumInteractiveComponentSize()
+                .testTag("sort_menu_button"),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                LibrarySortOption.entries.forEach { option ->
-                    val isSelected = sortOption == option
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = option.label,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            )
-                        },
-                        leadingIcon = {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        },
-                        trailingIcon = {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = if (ascending) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                        },
-                        onClick = { onSelectSort(option) },
-                        modifier = Modifier.testTag("sort_option_${option.name.lowercase()}"),
-                    )
-                }
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(if (ascending) "Switch to Descending" else "Switch to Ascending") },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = if (ascending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    },
-                    onClick = { onSelectSort(sortOption) },
-                    modifier = Modifier.testTag("sort_toggle_direction"),
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.Sort,
+                    contentDescription = stringResource(R.string.sort_by),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = sortOption.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+                Icon(
+                    imageVector = if (ascending) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                    contentDescription = if (ascending) "Ascending" else "Descending",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp),
                 )
             }
+        }
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { onToggleMenu(false) },
+            modifier = Modifier.testTag("sort_dropdown_menu"),
+        ) {
+            LibrarySortOption.entries.forEach { option ->
+                val isSelected = sortOption == option
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = option.label,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    leadingIcon = {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    },
+                    trailingIcon = {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = if (ascending) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    },
+                    onClick = { onSelectSort(option) },
+                    modifier = Modifier.testTag("sort_option_${option.name.lowercase()}"),
+                )
+            }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(if (ascending) "Switch to Descending" else "Switch to Ascending") },
+                trailingIcon = {
+                    Icon(
+                        imageVector = if (ascending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                onClick = { onSelectSort(sortOption) },
+                modifier = Modifier.testTag("sort_toggle_direction"),
+            )
         }
     }
 }

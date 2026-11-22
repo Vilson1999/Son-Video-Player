@@ -1,7 +1,12 @@
 package com.sonvideo.player.ui.home
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -22,11 +27,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.PermMedia
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.VideoFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,11 +44,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +61,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sonvideo.player.R
 import com.sonvideo.player.data.LibrarySortOption
 import com.sonvideo.player.data.PlayerSettings
@@ -75,10 +85,45 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
+    var hasPermission by remember { mutableStateOf(hasMediaReadPermission(context)) }
+    var hasRequestedPermission by rememberSaveable { mutableStateOf(false) }
+    var deviceVideos by remember { mutableStateOf<List<VideoEntry>>(emptyList()) }
     var scannedByFolder by remember { mutableStateOf<Map<String, List<VideoEntry>>>(emptyMap()) }
     var showSortMenu by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        hasPermission = hasMediaReadPermission(context)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPermission = hasMediaReadPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasPermission && !hasRequestedPermission) {
+            hasRequestedPermission = true
+            permissionLauncher.launch(requiredStoragePermissions())
+        }
+    }
+
+    LaunchedEffect(hasPermission) {
+        deviceVideos = if (hasPermission) {
+            MediaInfoHelper.scanDeviceVideos(context)
+        } else {
+            emptyList()
+        }
+    }
 
     LaunchedEffect(folders) {
         val updated = linkedMapOf<String, List<VideoEntry>>()
@@ -93,69 +138,15 @@ fun HomeScreen(
         scannedByFolder = updated
     }
 
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree(),
-    ) { treeUri: Uri? ->
-        if (treeUri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    treeUri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-            val folderName = MediaInfoHelper.resolveFolderName(context, treeUri)
-            val folder = VideoFolder(
-                treeUri = treeUri.toString(),
-                name = folderName,
-                addedAtMs = System.currentTimeMillis(),
-            )
-            scope.launch { repository.addOrUpdateFolder(folder) }
-        }
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri: Uri? ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-            val meta = MediaInfoHelper.resolveFileDetails(context, uri)
-            val entry = VideoEntry(
-                uri = uri.toString(),
-                title = meta.displayName,
-                subtitle = meta.folderName,
-                formatTag = MediaInfoHelper.detectFormatTag(meta.displayName),
-                addedAtMs = meta.dateAddedMs,
-                sizeBytes = meta.sizeBytes,
-                folderName = meta.folderName,
-            )
-            scope.launch { repository.addOrUpdateLibraryItem(entry) }
-            onPlayVideo(entry.uri, entry.title)
-        }
-    }
-
-    val launchFolderPicker = { folderPickerLauncher.launch(null) }
-    val launchFilePicker = {
-        filePickerLauncher.launch(
-            arrayOf(
-                "video/*",
-                "application/x-matroska",
-                "application/octet-stream",
-            )
-        )
-    }
-
-    val rawGroups = remember(folders, scannedByFolder, libraryItems) {
+    val rawGroups = remember(folders, scannedByFolder, deviceVideos, libraryItems) {
         val groups = mutableListOf<FolderDisplayGroup>()
+        val coveredUris = mutableSetOf<String>()
         val folderUrisCovered = mutableSetOf<String>()
 
         for (folder in folders) {
             val videos = scannedByFolder[folder.treeUri].orEmpty()
             folderUrisCovered += folder.treeUri
+            videos.forEach { coveredUris += it.uri }
             val totalSize = videos.sumOf { it.sizeBytes.coerceAtLeast(0L) }
             val latestDate = videos.maxOfOrNull { it.addedAtMs }?.coerceAtLeast(folder.addedAtMs)
                 ?: folder.addedAtMs
@@ -171,10 +162,30 @@ fun HomeScreen(
             )
         }
 
+        deviceVideos
+            .filter { it.uri !in coveredUris }
+            .groupBy { it.folderUri.ifBlank { "mediastore:default" } }
+            .forEach { (bucketUri, videos) ->
+                videos.forEach { coveredUris += it.uri }
+                val folderName = videos.firstOrNull()?.folderName?.ifBlank { "Device Videos" } ?: "Device Videos"
+                groups.add(
+                    FolderDisplayGroup(
+                        id = bucketUri,
+                        treeUri = bucketUri,
+                        name = folderName,
+                        videos = videos,
+                        totalSizeBytes = videos.sumOf { it.sizeBytes.coerceAtLeast(0L) },
+                        latestAddedAtMs = videos.maxOfOrNull { it.addedAtMs } ?: 0L,
+                    )
+                )
+            }
+
         val offlineStandalone = libraryItems.filter { item ->
             val scheme = Uri.parse(item.uri).scheme
             val isLocal = scheme.equals("content", ignoreCase = true) || scheme.equals("file", ignoreCase = true)
-            isLocal && (item.folderUri.isBlank() || item.folderUri !in folderUrisCovered)
+            isLocal &&
+                item.uri !in coveredUris &&
+                (item.folderUri.isBlank() || item.folderUri !in folderUrisCovered)
         }
 
         offlineStandalone
@@ -229,30 +240,36 @@ fun HomeScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    SimpleHomeHeader(onOpenSettings = onOpenSettings)
-                    SimpleActionRow(
-                        onAddFolder = launchFolderPicker,
-                        onOpenFile = launchFilePicker,
-                    )
-                    CollectionSortBar(
-                        title = stringResource(R.string.my_videos),
-                        countText = "${sortedFolders.size}",
+                    SimpleHomeHeader(
                         sortOption = settings.librarySort,
                         ascending = settings.librarySortAscending,
-                        menuExpanded = showSortMenu,
-                        onToggleMenu = { showSortMenu = it },
+                        sortMenuExpanded = showSortMenu,
+                        onToggleSortMenu = { showSortMenu = it },
                         onSelectSort = onSelectSortOption,
+                        onOpenSettings = onOpenSettings,
+                    )
+                    Text(
+                        text = stringResource(R.string.my_videos),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
 
                 VideoFolderLazyColumn(
                     folders = sortedFolders,
+                    hasPermission = hasPermission,
                     onFolderClick = { folder -> onOpenFolder(folder.name, folder.treeUri) },
                     onRemoveFolder = { treeUri -> scope.launch { repository.removeFolder(treeUri) } },
-                    onAddFolder = launchFolderPicker,
-                    onOpenFile = launchFilePicker,
+                    onGrantPermission = { permissionLauncher.launch(requiredStoragePermissions()) },
+                    onOpenAppSettings = {
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null),
+                        )
+                        context.startActivity(intent)
+                    },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -260,13 +277,52 @@ fun HomeScreen(
     }
 }
 
+private fun requiredStoragePermissions(): Array<String> = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> arrayOf(
+        Manifest.permission.READ_MEDIA_VIDEO,
+        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+    )
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
+        Manifest.permission.READ_MEDIA_VIDEO,
+    )
+    else -> arrayOf(
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+    )
+}
+
+private fun hasMediaReadPermission(context: Context): Boolean = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_MEDIA_VIDEO,
+        ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+            ) == PackageManager.PERMISSION_GRANTED
+    }
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_MEDIA_VIDEO,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    else -> {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+}
+
 @Composable
 fun VideoFolderLazyColumn(
     folders: List<FolderDisplayGroup>,
+    hasPermission: Boolean,
     onFolderClick: (FolderDisplayGroup) -> Unit,
     onRemoveFolder: (treeUri: String) -> Unit,
-    onAddFolder: () -> Unit,
-    onOpenFile: () -> Unit,
+    onGrantPermission: () -> Unit,
+    onOpenAppSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -278,17 +334,19 @@ fun VideoFolderLazyColumn(
     ) {
         if (folders.isNotEmpty()) {
             items(folders, key = { it.id }) { folder ->
+                val removableUri = folder.treeUri?.takeIf { it.startsWith("content://") }
                 FolderCard(
                     folder = folder,
                     onOpen = { onFolderClick(folder) },
-                    onRemove = folder.treeUri?.let { treeUri -> { onRemoveFolder(treeUri) } },
+                    onRemove = removableUri?.let { treeUri -> { onRemoveFolder(treeUri) } },
                 )
             }
         } else {
             item {
                 EmptyFolderCard(
-                    onAddFolder = onAddFolder,
-                    onOpenFile = onOpenFile,
+                    hasPermission = hasPermission,
+                    onGrantPermission = onGrantPermission,
+                    onOpenAppSettings = onOpenAppSettings,
                 )
             }
         }
@@ -297,6 +355,11 @@ fun VideoFolderLazyColumn(
 
 @Composable
 private fun SimpleHomeHeader(
+    sortOption: LibrarySortOption,
+    ascending: Boolean,
+    sortMenuExpanded: Boolean,
+    onToggleSortMenu: (Boolean) -> Unit,
+    onSelectSort: (LibrarySortOption) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     Row(
@@ -321,50 +384,29 @@ private fun SimpleHomeHeader(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        FilledTonalIconButton(
-            onClick = onOpenSettings,
-            modifier = Modifier
-                .minimumInteractiveComponentSize()
-                .testTag("settings_button"),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Settings,
-                contentDescription = stringResource(R.string.settings),
-            )
-        }
-    }
-}
+            FilledTonalIconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .testTag("settings_button"),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Settings,
+                    contentDescription = stringResource(R.string.settings),
+                )
+            }
 
-@Composable
-private fun SimpleActionRow(
-    onAddFolder: () -> Unit,
-    onOpenFile: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Button(
-            onClick = onAddFolder,
-            modifier = Modifier
-                .weight(1f)
-                .minimumInteractiveComponentSize()
-                .testTag("add_folder_button"),
-        ) {
-            Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.open_local_video))
-        }
-        OutlinedButton(
-            onClick = onOpenFile,
-            modifier = Modifier
-                .weight(1f)
-                .minimumInteractiveComponentSize()
-                .testTag("open_file_button"),
-        ) {
-            Icon(Icons.Rounded.VideoFile, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.open_any_format))
+            SortMenuButton(
+                sortOption = sortOption,
+                ascending = ascending,
+                menuExpanded = sortMenuExpanded,
+                onToggleMenu = onToggleSortMenu,
+                onSelectSort = onSelectSort,
+            )
         }
     }
 }
@@ -376,9 +418,11 @@ private fun FolderCard(
     onRemove: (() -> Unit)?,
 ) {
     val previewUri = folder.videos.firstOrNull()?.uri
-    val countLabel = if (folder.videos.size == 1) "1 video" else "${folder.videos.size} videos"
-    val sizeLabel = if (folder.totalSizeBytes > 0L) MediaInfoHelper.formatFileSize(folder.totalSizeBytes) else null
-    val metaLine = listOfNotNull(countLabel, sizeLabel).joinToString(" • ")
+    val sizeLabel = if (folder.totalSizeBytes > 0L) {
+        MediaInfoHelper.formatFileSize(folder.totalSizeBytes)
+    } else {
+        "Video folder"
+    }
 
     Card(
         shape = MaterialTheme.shapes.medium,
@@ -437,7 +481,7 @@ private fun FolderCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = metaLine,
+                    text = sizeLabel,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -462,8 +506,9 @@ private fun FolderCard(
 
 @Composable
 private fun EmptyFolderCard(
-    onAddFolder: () -> Unit,
-    onOpenFile: () -> Unit,
+    hasPermission: Boolean,
+    onGrantPermission: () -> Unit,
+    onOpenAppSettings: () -> Unit,
 ) {
     Card(
         shape = MaterialTheme.shapes.large,
@@ -486,7 +531,7 @@ private fun EmptyFolderCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Rounded.Folder,
+                        imageVector = if (hasPermission) Icons.Rounded.Folder else Icons.Rounded.PermMedia,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(28.dp),
@@ -494,30 +539,40 @@ private fun EmptyFolderCard(
                 }
             }
             Text(
-                text = stringResource(R.string.empty_library_title),
+                text = stringResource(
+                    if (hasPermission) R.string.empty_library_title else R.string.permission_required_title
+                ),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = stringResource(R.string.empty_library_subtitle),
+                text = stringResource(
+                    if (hasPermission) R.string.empty_library_subtitle else R.string.permission_required_subtitle
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = onAddFolder,
-                    modifier = Modifier.minimumInteractiveComponentSize(),
-                ) {
-                    Text(stringResource(R.string.open_local_video))
-                }
-                OutlinedButton(
-                    onClick = onOpenFile,
-                    modifier = Modifier.minimumInteractiveComponentSize(),
-                ) {
-                    Text(stringResource(R.string.open_any_format))
+            if (!hasPermission) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = onGrantPermission,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("grant_media_permission_button"),
+                    ) {
+                        Text(stringResource(R.string.grant_permission))
+                    }
+                    OutlinedButton(
+                        onClick = onOpenAppSettings,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("open_app_settings_button"),
+                    ) {
+                        Text(stringResource(R.string.open_app_settings))
+                    }
                 }
             }
         }

@@ -76,7 +76,15 @@ fun FolderVideosScreen(
     var inspectedItem by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     LaunchedEffect(treeUri, folderName) {
-        if (treeUri.isNotBlank()) {
+        if (treeUri.startsWith("mediastore:")) {
+            isLoading = true
+            val bucketId = treeUri.removePrefix("mediastore:").ifBlank { null }
+            scannedVideos = MediaInfoHelper.scanDeviceVideos(
+                context = context,
+                bucketIdFilter = bucketId,
+            )
+            isLoading = false
+        } else if (treeUri.isNotBlank()) {
             isLoading = true
             scannedVideos = MediaInfoHelper.scanFolderVideos(
                 context = context,

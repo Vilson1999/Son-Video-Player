@@ -6,5 +6,5 @@ pluginManagement {
   }
 }
 
-rootProject.name = "Son-Video-Player"
+rootProject.name = "Son Player"
 include(":app")
