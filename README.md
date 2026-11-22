@@ -6,10 +6,10 @@
       </td>
       <td align="left">
         <h1>Son Player</h1>
-        <p><strong>Offline Android video player powered by Media3 and NextLib</strong></p>
       </td>
     </tr>
   </table>
+  <p><strong>Offline Android video player powered by Media3 and NextLib</strong></p>
 </div>
 
 ## App Details
