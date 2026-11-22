@@ -1,198 +1,140 @@
-# AndroidX Media
+<div align="center">
+  <table>
+    <tr>
+      <td width="180" align="center">
+        <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="140" alt="Son Player app icon">
+      </td>
+      <td align="left">
+        <h1>Son Player</h1>
+        <p><strong>Offline Android video player powered by Media3 and NextLib</strong></p>
+        <p>
+          <a href="../../releases/latest"><img src="https://img.shields.io/badge/Release-Get%20APK-blue?style=for-the-badge" alt="Release App"></a>
+          <a href="../../actions"><img src="https://img.shields.io/badge/Beta-Build%20Now-orange?style=for-the-badge" alt="Beta App"></a>
+        </p>
+        <p>
+          <img src="https://img.shields.io/badge/Version-1.0.0--beta-green?style=flat-square" alt="App version">
+          <img src="https://img.shields.io/badge/Update-Auto%20updates-blue?style=flat-square" alt="Update status">
+        </p>
+      </td>
+    </tr>
+  </table>
+</div>
 
-AndroidX Media is a collection of libraries for implementing media use cases on
-Android, including local playback (via ExoPlayer), video editing (via
-Transformer) and media sessions.
+## App Details
 
-## Documentation
+| Category | Details |
+|---|---|
+| **App name** | Son Player |
+| **Developer** | Vilson Sonkar |
+| **Package** | `com.sonvideo.player` |
+| **Version** | `1.0.0-beta` |
+| **Version code** | `1` |
+| **Platform** | Android |
+| **Minimum Android** | Android 9 / API 28 |
+| **Target Android** | API 36 |
+| **Architecture** | ARMv7, ARM64 |
+| **License** | Apache License 2.0 |
 
-*   The [developer guide] provides a wealth of information.
-*   The [class reference] documents the classes and methods.
-*   The [release notes] document the major changes in each release.
-*   The [media dev center] provides samples and guidelines.
-*   Follow our [developer blog] to keep up to date with the latest developments!
+## Languages
 
-[developer guide]: https://developer.android.com/guide/topics/media/media3
-[class reference]: https://developer.android.com/reference/androidx/media3/common/package-summary
-[release notes]: RELEASENOTES.md
-[media dev center]: https://developer.android.com/media
-[developer blog]: https://medium.com/google-exoplayer
+| Language | Size |
+|---|---:|
+| Java | 35,857,717 bytes |
+| Kotlin | 1,116,926 bytes |
+| GLSL | 82,462 bytes |
+| C++ | 185,877 bytes |
+| CMake | 11,871 bytes |
+| Shell | 13,823 bytes |
+| AIDL | 32,084 bytes |
+| Makefile | 5,057 bytes |
 
-## Migration for existing ExoPlayer and MediaSession projects
+## Description
 
-You'll find a [migration guide for existing ExoPlayer and MediaSession users] on
-developer.android.com.
+Son Player is an offline, lightweight Android video player built with Jetpack Compose and AndroidX Media3. It provides local video browsing, playback controls, codec/media information, folder sorting, subtitles, audio tracks, and picture-in-picture support.
 
-[migration guide for existing ExoPlayer and MediaSession users]: https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide
+## Features
 
-## API stability
+### Playback
 
-AndroidX Media releases provide API stability guarantees, ensuring that the API
-surface remains backwards compatible for the most commonly used APIs. APIs
-intended for more advanced use cases are marked as unstable. To use an unstable
-method or class without lint warnings, you’ll need to add the OptIn annotation
-before using it. For more information see the [UnstableApi] documentation.
+- Media3 ExoPlayer playback
+- Local file and folder access
+- Offline-only operation
+- Play, pause, rewind, and fast forward
+- Playback speed controls
+- Lockable player controls
+- Continue watching support
 
-[UnstableApi]: https://github.com/androidx/media/blob/main/libraries/common/src/main/java/androidx/media3/common/util/UnstableApi.java
+### Video and Media
 
-## Using the libraries
+- NextLib FFmpeg and dav1d codec integration
+- Codec and media information
+- Audio track selection
+- Subtitle support
+- Resize/aspect-ratio modes
+- Picture-in-picture
 
-You can get the libraries from [the Google Maven repository]. It's also possible
-to clone this GitHub repository and depend on the modules locally.
+### Library
 
-[the Google Maven repository]: https://developer.android.com/studio/build/dependencies#google-maven
+- Video folder browser
+- Sort videos by name, date added, or file size
+- Open a local folder or any supported file
+- Empty-library guidance and quick folder setup
 
-### From the Google Maven repository
+### Interface
 
-#### 1. Add module dependencies
+- Jetpack Compose Material 3 interface
+- Portrait and landscape playback
+- System UI and player controls
+- English localization
 
-The easiest way to get started using AndroidX Media is to add Gradle
-dependencies on the libraries you need in the `build.gradle.kts` file of your
-app module.
+## Technical Overview
 
-For example, to depend on ExoPlayer with DASH playback support and UI components
-you can add dependencies on the modules like this:
+- **UI:** Jetpack Compose + Material 3
+- **Player:** AndroidX Media3 / ExoPlayer
+- **Codecs:** NextLib FFmpeg + dav1d
+- **Media scanning:** Android storage and file providers
+- **Build system:** Gradle Kotlin DSL
+- **Minimum SDK:** 28
+- **Compile/Target SDK:** 36
+- **Java compatibility:** Java 17
 
-```kotlin
-implementation("androidx.media3:media3-exoplayer:1.X.X")
-implementation("androidx.media3:media3-exoplayer-dash:1.X.X")
-implementation("androidx.media3:media3-ui:1.X.X")
+## App Resources
+
+- [Android manifest](app/src/main/AndroidManifest.xml)
+- [App module build configuration](app/build.gradle.kts)
+- [App strings and labels](app/src/main/res/values/strings.xml)
+- [Launcher icon](app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)
+
+## Build
+
+```bash
+./gradlew :app:assembleDebug
 ```
 
-Or in Gradle Groovy DSL `build.gradle`:
+The generated debug APK will be available in:
 
-```groovy
-implementation 'androidx.media3:media3-exoplayer:1.X.X'
-implementation 'androidx.media3:media3-exoplayer-dash:1.X.X'
-implementation 'androidx.media3:media3-ui:1.X.X'
+```text
+app/build/outputs/apk/debug/
 ```
 
-where `1.X.X` is your preferred version. All modules must be the same version.
+Release builds can be created with:
 
-Please see the [AndroidX Media3 developer.android.com page] for more
-information, including a full list of library modules.
-
-This repository includes some modules that depend on external libraries that
-need to be built manually, and are not available from the Maven repository.
-Please see the individual READMEs under the [libraries directory] for more
-details.
-
-[AndroidX Media3 developer.android.com page]: https://developer.android.com/jetpack/androidx/releases/media3#declaring_dependencies
-[libraries directory]: libraries
-
-#### 2. Turn on Java 8 support
-
-If not enabled already, you also need to turn on Java 8 support in all
-`build.gradle.kts` files depending on AndroidX Media, by adding the following to
-the `android` section:
-
-```kotlin
-compileOptions {
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
+```bash
+./gradlew :app:assembleRelease
 ```
 
-Or in Gradle Groovy DSL `build.gradle`:
+## Releases
 
-```groovy
-compileOptions {
-    targetCompatibility JavaVersion.VERSION_1_8
-}
-```
+- **Release app:** Stable builds are published through [GitHub Releases](../../releases).
+- **Beta app:** Development builds are produced by [GitHub Actions](../../actions).
+- **App version:** `1.0.0-beta`
+- **Update method:** Android APK updates must be installed manually unless an update mechanism is added to the app.
 
-### Locally
+## Developer
 
-Cloning the repository and depending on the modules locally is required when
-using some libraries. It's also a suitable approach if you want to make local
-changes, or if you want to use the `main` branch.
+**Vilson Sonkar**  
+GitHub: [@Vilson1999](https://github.com/Vilson1999)
 
-First, clone the repository into a local directory:
+## License
 
-```sh
-git clone https://github.com/androidx/media.git
-```
-
-Next, add the following to your project's `settings.gradle.kts` file, replacing
-`path/to/media` with the path to your local copy:
-
-```kotlin
-import androidx.media3.buildlogic.includeMedia3
-
-pluginManagement {
-  includeBuild("path/to/media/build-logic-settings")
-  // your other plugins
-}
-plugins {
-  id("gradlebuild.media3-settings-logic")
-  // your other plugins
-}
-
-includeMedia3(file("path/to/media"))
-```
-
-Or in Gradle Groovy DSL `settings.gradle`:
-
-```groovy
-pluginManagement {
-    includeBuild('path/to/media/build-logic-settings')
-}
-
-plugins {
-    id 'gradlebuild.media3-settings-logic'
-}
-
-includeMedia3.execute(file('path/to/media'))
-```
-
-The AndroidX Media checkout will now appear as a separate included build
-side-by-side with your main project. You can depend on the individual modules
-from your app's `build.gradle.kts` as you would on any other module. Gradle will
-resolve those seemingly published releases as a local checkout.
-
-If your project depends on a particular version of Media3 (here: 1.X.X), it will
-be completely ignored, so you can leave your build files intact. For example:
-
-```kotlin
-implementation("androidx.media3:media3-exoplayer:1.X.X")
-implementation("androidx.media3:media3-exoplayer-dash:1.X.X")
-implementation("androidx.media3:media3-ui:1.X.X")
-```
-
-Or in Gradle Groovy DSL `build.gradle`:
-
-```groovy
-implementation 'androidx.media3:media3-exoplayer:1.X.X'
-implementation 'androidx.media3:media3-exoplayer-dash:1.X.X'
-implementation 'androidx.media3:media3-ui:1.X.X'
-```
-
-If you are getting `NDK not configured` error, check that
-`path/to/media/local.properties` has `sdk.dir` variable set. It will be
-autogenerated and populated if you open `path/to/media` project in your Android
-Studio.
-
-#### MIDI module
-
-By default, the [MIDI module](libraries/decoder_midi) is disabled as a local
-dependency, because it requires additional Maven repository config. If you want
-to use it as a local dependency, please configure the JitPack repository as
-[described in the module README](libraries/decoder_midi/README.md#getting-the-module),
-and then enable building the module in by modifying `modules.kt` file:
-
-```kotlin
-Media3Module("libraries/decoder_midi", "media3-exoplayer-midi", includeInCompositeBuild = true)
-```
-
-## Developing AndroidX Media
-
-#### Project branches
-
-Development work happens on the `main` branch. Pull requests should normally be
-made to this branch.
-
-The `release` branch holds the most recent stable release.
-
-#### Using Android Studio
-
-To develop AndroidX Media using Android Studio, simply open the project in the
-root directory of this repository.
+Licensed under the [Apache License 2.0](LICENSE).
