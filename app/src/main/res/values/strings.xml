@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Son Player</string>
+    <string name="home_subtitle">NextLib FFmpeg &amp; Media3 Engine</string>
+    <string name="open_local_video">Add Folder</string>
+    <string name="open_any_format">Open File</string>
+    <string name="continue_watching">Continue Watching</string>
+    <string name="my_videos">Video Folders</string>
+    <string name="empty_library_title">No video folders yet</string>
+    <string name="empty_library_subtitle">Add a folder from your device to browse and sort offline videos by name, date added, or file size.</string>
+    <string name="sort_by">Sort</string>
+    <string name="settings">Settings</string>
+    <string name="media_info">Codec &amp; Media Info</string>
+    <string name="back">Back</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="rewind">Rewind</string>
+    <string name="fast_forward">Fast Forward</string>
+    <string name="lock_controls">Lock controls</string>
+    <string name="unlock_controls">Unlock controls</string>
+    <string name="audio_tracks">Audio tracks</string>
+    <string name="subtitles">Subtitles</string>
+    <string name="aspect_ratio">Resize mode</string>
+    <string name="rotate_screen">Rotate screen</string>
+    <string name="picture_in_picture">Picture-in-Picture</string>
+    <string name="playback_speed">Playback speed</string>
+    <string name="about_app">About App</string>
+    <string name="developer_label">Developer</string>
+    <string name="developer_name">Vilson Sonkar</string>
+</resources>

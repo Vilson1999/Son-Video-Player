@@ -1,0 +1,138 @@
+name: beta son video player
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+      - "beta*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag (e.g. beta-v1.0.0). Leave empty for automatic beta tag."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Compressed Release APK (ARMv7 & ARMv8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Gradle wrapper and keystore
+        run: |
+          chmod +x gradlew
+          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
+
+      - name: Build compressed release APK (armeabi-v7a & arm64-v8a)
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Prepare APK and inspect compression
+        id: apk
+        run: |
+          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+          OUT_APK="son-video-player-beta-armv7-armv8.apk"
+          cp "$APK_PATH" "$OUT_APK"
+          SIZE_MB=$(du -h "$OUT_APK" | cut -f1)
+          echo "apk_name=$OUT_APK" >> "$GITHUB_OUTPUT"
+          echo "apk_size=$SIZE_MB" >> "$GITHUB_OUTPUT"
+          echo "Built $OUT_APK ($SIZE_MB)"
+
+      - name: Generate release tag and Fixes / New Feature / Improve changelog
+        id: meta
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="beta-v1.0.0-build.${{ github.run_number }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s")
+          else
+            COMMITS=$(git log -n 20 --pretty=format:"%s")
+          fi
+
+          FIXES=$(echo "$COMMITS" | grep -iE '^(fix|bugfix|hotfix)(\(|:)' || true)
+          FEATURES=$(echo "$COMMITS" | grep -iE '^(feat|feature|add)(\(|:)' || true)
+          IMPROVES=$(echo "$COMMITS" | grep -iE '^(improve|perf|refactor|chore|style|build|ci)(\(|:)' || true)
+
+          {
+            echo "# Beta Son Video Player ($TAG)"
+            echo ""
+            echo "- **Package:** \`com.sonvideo.player\`"
+            echo "- **Developer:** Vilson Sonkar"
+            echo "- **Target ABIs:** \`armeabi-v7a\` (ARMv7), \`arm64-v8a\` (ARMv8)"
+            echo "- **APK Size:** ${{ steps.apk.outputs.apk_size }} (R8 minified, resource-shrunk, compressed JNI libs)"
+            echo ""
+            echo "## New Feature"
+            if [ -n "$FEATURES" ]; then
+              echo "$FEATURES" | sed 's/^/- /'
+            else
+              echo "- Offline NextLib FFmpeg & Media3 video playback engine (no internet permissions)"
+              echo "- Redesigned adaptive app icon (hollow RGB gradient spiral play symbol on white background)"
+              echo "- Folder-based Home library with Name, Date Added, and File Size sorting"
+              echo "- In-player technical info sheet (resolution, codec, duration, frame rate, bitrate)"
+              echo "- Touch gestures for horizontal swipe seek, left brightness, and right volume"
+              echo "- Categorized Settings folders, About & Developer info, and Light/Dark/System theme"
+            fi
+            echo ""
+            echo "## Improve"
+            if [ -n "$IMPROVES" ]; then
+              echo "$IMPROVES" | sed 's/^/- /'
+            else
+              echo "- Compressed release APK using ARMv7/ARMv8-only ABI filtering, R8 full shrinking, and legacy compressed native library packaging"
+              echo "- Updated application package identifier to com.sonvideo.player"
+              echo "- Fast MediaMetadataRetriever thumbnail caching with bounded memory & disk cache"
+              echo "- Refined gesture sensitivity and real initial screen brightness detection"
+            fi
+            echo ""
+            echo "## Fixes"
+            if [ -n "$FIXES" ]; then
+              echo "$FIXES" | sed 's/^/- /'
+            else
+              echo "- Removed all online/streaming permissions and network dependencies for strictly offline playback"
+              echo "- Fixed forward seek clamping, brightness reset on player exit, and edge-to-edge padding"
+            fi
+          } > release_notes.md
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-son-video-player-apk
+          path: ${{ steps.apk.outputs.apk_name }}
+
+      - name: Create Beta GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "Beta Son Video Player (${{ steps.meta.outputs.tag }})"
+          body_path: release_notes.md
+          prerelease: true
+          files: |
+            ${{ steps.apk.outputs.apk_name }}
